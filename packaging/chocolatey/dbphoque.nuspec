@@ -7,10 +7,10 @@
     <title>DBphoque</title>
     <authors>gsoulat</authors>
     <owners>gsoulat</owners>
-    <projectUrl>https://github.com/gsoulat/quarry</projectUrl>
-    <packageSourceUrl>https://github.com/gsoulat/quarry/tree/main/packaging/chocolatey</packageSourceUrl>
-    <iconUrl>https://raw.githubusercontent.com/gsoulat/quarry/main/assets/icon-256.png</iconUrl>
-    <releaseNotes>https://github.com/gsoulat/quarry/releases/tag/v@VERSION@</releaseNotes>
+    <projectUrl>https://github.com/gsoulat/DBphoque</projectUrl>
+    <packageSourceUrl>https://github.com/gsoulat/DBphoque/tree/main/packaging/chocolatey</packageSourceUrl>
+    <iconUrl>https://raw.githubusercontent.com/gsoulat/DBphoque/main/assets/icon-256.png</iconUrl>
+    <releaseNotes>https://github.com/gsoulat/DBphoque/releases/tag/v@VERSION@</releaseNotes>
     <tags>database sql sqlite postgresql mysql bigquery client</tags>
     <summary>Client de bases de données léger et multiplateforme</summary>
     <description>DBphoque est un client SQL graphique écrit en Rust : SQLite intégré ; PostgreSQL, MySQL et BigQuery par connecteurs téléchargeables ; éditeur avec autocomplétion, plan d'exécution, diagramme des tables, import et export.</description>

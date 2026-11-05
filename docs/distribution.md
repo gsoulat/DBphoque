@@ -35,7 +35,7 @@ Le job `apt` publie un dépôt APT dans la branche `gh-pages`, sous `apt/`.
 2. Exporter la clé privée dans le secret `APT_GPG_PRIVATE_KEY` :
 
    ```bash
-   gpg --armor --export-secret-keys "DBphoque APT" | gh secret set APT_GPG_PRIVATE_KEY --repo gsoulat/quarry
+   gpg --armor --export-secret-keys "DBphoque APT" | gh secret set APT_GPG_PRIVATE_KEY --repo gsoulat/DBphoque
    ```
 
 3. Après la première Release, activer GitHub Pages : Settings → Pages → Deploy
@@ -44,8 +44,8 @@ Le job `apt` publie un dépôt APT dans la branche `gh-pages`, sous `apt/`.
 Installation pour l'utilisateur :
 
 ```bash
-curl -fsSL https://gsoulat.github.io/quarry/apt/dbphoque.gpg | sudo tee /usr/share/keyrings/dbphoque.gpg > /dev/null
-echo "deb [signed-by=/usr/share/keyrings/dbphoque.gpg] https://gsoulat.github.io/quarry/apt stable main" | sudo tee /etc/apt/sources.list.d/dbphoque.list
+curl -fsSL https://gsoulat.github.io/DBphoque/apt/dbphoque.gpg | sudo tee /usr/share/keyrings/dbphoque.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/dbphoque.gpg] https://gsoulat.github.io/DBphoque/apt stable main" | sudo tee /etc/apt/sources.list.d/dbphoque.list
 sudo apt update && sudo apt install dbphoque
 ```
 

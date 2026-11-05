@@ -4,7 +4,7 @@ version = "0.5.0"
 edition = "2024"
 description = "Client de bases de données léger et multiplateforme, écrit en Rust avec iced"
 authors = ["gsoulat"]
-homepage = "https://github.com/gsoulat/quarry"
+homepage = "https://github.com/gsoulat/DBphoque"
 
 [dependencies]
 async-trait = "0.1.92"

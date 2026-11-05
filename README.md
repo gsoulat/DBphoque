@@ -42,7 +42,7 @@ Chaque moteur a sa propre échelle de coût : les valeurs ne sont pas comparable
 | Windows (Chocolatey) | `choco install dbphoque` |
 | Debian / Ubuntu (APT) | voir [docs/distribution.md](docs/distribution.md#apt--dépôt-signé-sur-github-pages) |
 
-Ou télécharger le paquet sur la page [Releases](https://github.com/gsoulat/quarry/releases) : `.dmg` (macOS), `-setup.exe` (Windows), `.deb` ou `.AppImage` (Linux).
+Ou télécharger le paquet sur la page [Releases](https://github.com/gsoulat/DBphoque/releases) : `.dmg` (macOS), `-setup.exe` (Windows), `.deb` ou `.AppImage` (Linux).
 
 Une Release est publiée **à chaque merge sur `main`** contenant un commit `feat:`, `fix:`, `perf:` ou `refactor:` (semantic-release calcule la version et crée le tag `v<version>`). La mise en place des canaux (secrets, tap Homebrew, clé GPG) est décrite dans [docs/distribution.md](docs/distribution.md).
 

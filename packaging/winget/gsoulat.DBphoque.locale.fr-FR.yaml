@@ -4,7 +4,7 @@ PackageLocale: fr-FR
 Publisher: gsoulat
 PublisherUrl: https://github.com/gsoulat
 PackageName: DBphoque
-PackageUrl: https://github.com/gsoulat/quarry
+PackageUrl: https://github.com/gsoulat/DBphoque
 # Le dépôt n'a pas encore de fichier LICENSE : à mettre à jour quand il en aura un.
 License: Tous droits réservés
 ShortDescription: Client de bases de données léger et multiplateforme
@@ -17,6 +17,6 @@ Tags:
   - postgresql
   - mysql
   - bigquery
-ReleaseNotesUrl: https://github.com/gsoulat/quarry/releases/tag/v@VERSION@
+ReleaseNotesUrl: https://github.com/gsoulat/DBphoque/releases/tag/v@VERSION@
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

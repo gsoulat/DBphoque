@@ -7,10 +7,10 @@ cask "dbphoque" do
   sha256 arm:   "@SHA256_ARM@",
          intel: "@SHA256_INTEL@"
 
-  url "https://github.com/gsoulat/quarry/releases/download/v#{version}/DBphoque-v#{version}-macos-#{arch}.dmg"
+  url "https://github.com/gsoulat/DBphoque/releases/download/v#{version}/DBphoque-v#{version}-macos-#{arch}.dmg"
   name "DBphoque"
   desc "Client de bases de données léger : SQLite, PostgreSQL, MySQL, BigQuery"
-  homepage "https://github.com/gsoulat/quarry"
+  homepage "https://github.com/gsoulat/DBphoque"
 
   livecheck do
     url :url

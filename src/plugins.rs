@@ -164,7 +164,7 @@ pub fn remove(id: &str) -> Result<(), String> {
 // ----------------------------------------------------------------------
 
 /// Dernière Release de DBphoque sur GitHub.
-pub const APP_RELEASES_API: &str = "https://api.github.com/repos/gsoulat/quarry/releases/latest";
+pub const APP_RELEASES_API: &str = "https://api.github.com/repos/gsoulat/DBphoque/releases/latest";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
