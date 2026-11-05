@@ -1,11 +1,13 @@
-# Quarry
+# DBphoque
+
+<img src="assets/icon.svg" alt="Logo DBphoque : un phoque qui tient une base de données en équilibre sur son museau" width="128">
 
 Client de bases de données léger et multiplateforme (macOS, Linux, Windows), écrit en Rust avec [iced](https://iced.rs).
 
 ## Fonctionnalités
 
 - **SQLite intégré** ; **PostgreSQL**, **MySQL** et **Google BigQuery** sous forme de **connecteurs téléchargeables** (Gérer → Connecteurs) depuis [quarry-connectors](https://github.com/gsoulat/quarry-connectors), vérifiés par SHA-256 — on n'installe que ceux dont on a besoin
-- Vérification de **mise à jour** de Quarry au démarrage (bouton dans la barre du haut)
+- Vérification de **mise à jour** de DBphoque au démarrage (bouton dans la barre du haut)
 - **Gestionnaire de connexions** (bouton « Gérer ») : ajouter, tester, modifier, supprimer, ranger dans des **dossiers**
 - **Menu « Édition »** : créer / renommer / supprimer une table, ajouter / renommer / supprimer une colonne (types dans un menu déroulant par moteur), insérer / modifier / supprimer une ligne (onglet Données). Le SQL généré est **affiché et confirmé avant exécution**
 - Barre latérale groupée en **Local / Distant / Cloud** : un clic pour se (re)connecter
@@ -43,17 +45,23 @@ Une Release est publiée **à chaque merge sur `main`** dont la version de `Carg
 cargo run --release
 ```
 
-Les connexions sont enregistrées dans `connections.json`, dans le dossier de configuration du système (`~/Library/Application Support/fr.gsoulat.Quarry/` sur macOS).
+Les connexions sont enregistrées dans `connections.json`, dans le dossier de configuration du système (`~/Library/Application Support/fr.gsoulat.DBphoque/` sur macOS). DBphoque s'appelait Quarry : au premier lancement, il copie les connexions, requêtes et connecteurs du dossier de Quarry, et reprend les mots de passe de l'ancien élément `quarry` du trousseau.
 
 Pour BigQuery, renseigne l'identifiant du projet et, au choix, le chemin d'une clé JSON de compte de service ou rien pour utiliser `gcloud auth application-default login`.
 
-Pour produire une vraie application (`Quarry.app`, `.msi`, `.deb`) avec son icône :
+Pour produire les paquets localement :
 
 ```bash
-cargo install cargo-bundle && cargo bundle --release
+cargo install cargo-bundle && cargo bundle --release   # macOS : DBphoque.app
 ```
 
-L'icône a pour source `assets/icon.svg` ; `scripts/make_icon.sh` (macOS) régénère `icon.png`, `icon-256.png` et `icon.icns`.
+```bash
+cargo install cargo-deb && cargo deb                   # Linux : .deb
+```
+
+L'installeur Windows se compile avec [Inno Setup](https://jrsoftware.org/isinfo.php) : `iscc packaging\windows\dbphoque.iss`.
+
+L'icône a pour source `assets/icon.svg` ; `scripts/make_icon.sh` (macOS, avec ImageMagick) régénère `icon.png`, `icon-256.png`, `icon.icns` et `icon.ico`.
 
 ## Tests
 
@@ -72,7 +80,7 @@ QUARRY_TEST_PG=postgres://user:motdepasse@localhost/ma_base cargo test postgres
 ```text
 src/
 ├── main.rs              point d'entrée iced
-├── app.rs               état, messages et vues
+├── app/                 état, messages et vues, un module par écran
 ├── theme.rs             palette et styles
 ├── manager.rs           fenêtre de gestion des connexions
 ├── store.rs             connexions enregistrées + trousseau
@@ -84,7 +92,7 @@ src/
 ├── import.rs            import CSV / Excel / Parquet
 ├── completion.rs        autocomplétion SQL
 ├── tunnel.rs            tunnel SSH via le client ssh du système
-├── plugins.rs           registre, téléchargement et installation des connecteurs ; mise à jour de Quarry
+├── plugins.rs           registre, téléchargement et installation des connecteurs ; mise à jour de DBphoque
 └── connector/
     ├── mod.rs           trait Connector + génération du SQL d'après le dialecte
     ├── sqlite.rs        SQLite intégré

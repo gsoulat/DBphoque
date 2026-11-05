@@ -3,8 +3,9 @@
 # `fix:`, `perf:`, `refactor:` → correctif, `BREAKING CHANGE` → majeure),
 # calcule la version, met à jour Cargo.toml, Cargo.lock et CHANGELOG.md,
 # commit, tague `v<version>` et crée la Release GitHub avec les notes.
-# Les jobs suivants compilent Quarry depuis ce tag pour macOS (Apple
-# Silicon et Intel), Linux et Windows et attachent les archives.
+# Les jobs suivants compilent DBphoque depuis ce tag pour macOS (Apple
+# Silicon et Intel), Linux et Windows et attachent les paquets
+# d'installation (.dmg, .deb, AppImage, Setup.exe) et les archives.
 # Un commit sans type releasable (`ci:`, `docs:`, `chore:`…) ne publie rien.
 # Le titre de la pull request devient le message du squash merge : c'est
 # lui qui doit porter le type.
@@ -66,20 +67,25 @@ jobs:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            archive: Quarry-${{ needs.release.outputs.tag }}-macos-apple-silicon.zip
+            suffix: macos-apple-silicon
           # Compilé en croisé depuis le runner Apple Silicon.
           - name: macOS (Intel)
             os: macos-14
             target: x86_64-apple-darwin
-            archive: Quarry-${{ needs.release.outputs.tag }}-macos-intel.zip
+            suffix: macos-intel
           - name: Linux (x86_64)
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            archive: Quarry-${{ needs.release.outputs.tag }}-linux-x86_64.tar.gz
+            suffix: linux-x86_64
           - name: Windows (x86_64)
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            archive: Quarry-${{ needs.release.outputs.tag }}-windows-x86_64.zip
+            suffix: windows-x86_64
+    env:
+      # Préfixe commun des fichiers publiés, ex. DBphoque-v0.6.0-linux-x86_64
+      BASENAME: DBphoque-${{ needs.release.outputs.tag }}-${{ matrix.suffix }}
+      VERSION: ${{ needs.release.outputs.version }}
+      TARGET: ${{ matrix.target }}
     steps:
       # Le tag pointe sur le commit de release (Cargo.toml déjà à jour) :
       # c'est lui qu'on compile, pour que CARGO_PKG_VERSION soit la bonne.
@@ -98,42 +104,75 @@ jobs:
       - name: Compilation
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      # macOS : une vraie application Quarry.app avec son icône.
-      - name: Bundle macOS
+      # macOS : DBphoque.app signé ad hoc, livré en .dmg (glisser dans
+      # Applications) et en .zip.
+      - name: Paquets macOS (.dmg, .zip)
         if: runner.os == 'macOS'
         run: |
+          mkdir -p out
           cargo install cargo-bundle --locked
-          cargo bundle --release --target ${{ matrix.target }}
-          cd target/${{ matrix.target }}/release/bundle/osx
+          cargo bundle --release --target "$TARGET"
+          app="target/$TARGET/release/bundle/osx/DBphoque.app"
           # Signature ad hoc du bundle entier : sans elle, seul le binaire porte
           # la signature posée par l'éditeur de liens, les ressources et
           # Info.plist ne sont pas scellés et Gatekeeper affiche
-          # « Quarry est endommagé » au lieu de proposer d'ouvrir quand même.
-          codesign --force --deep --sign - Quarry.app
-          codesign --verify --deep --strict --verbose=2 Quarry.app
-          ditto -c -k --keepParent Quarry.app "${{ matrix.archive }}"
-          mv "${{ matrix.archive }}" "$GITHUB_WORKSPACE/"
+          # « DBphoque est endommagé » au lieu de proposer d'ouvrir quand même.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --keepParent "$app" "out/$BASENAME.zip"
+          # Image disque : l'application et un raccourci vers Applications.
+          mkdir dmg
+          cp -R "$app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname DBphoque -srcfolder dmg -ov -format UDZO "out/$BASENAME.dmg"
 
-      - name: Archive Linux
+      # Linux : .deb (Debian, Ubuntu), AppImage (toutes distributions) et
+      # .tar.gz (binaire seul).
+      - name: Paquets Linux (.deb, AppImage, .tar.gz)
         if: runner.os == 'Linux'
         run: |
-          mkdir -p dist/quarry
-          cp target/${{ matrix.target }}/release/quarry dist/quarry/
-          cp README.md assets/icon.png dist/quarry/
-          tar -C dist -czf "${{ matrix.archive }}" quarry
+          mkdir -p out
+          cargo install cargo-deb --locked
+          cargo deb --no-build --target "$TARGET" --output "out/$BASENAME.deb"
 
-      - name: Archive Windows
+          appdir=DBphoque.AppDir
+          mkdir -p "$appdir/usr/bin" "$appdir/usr/share/icons/hicolor/256x256/apps"
+          cp "target/$TARGET/release/dbphoque" "$appdir/usr/bin/"
+          cp packaging/linux/dbphoque.desktop "$appdir/"
+          cp assets/icon-256.png "$appdir/dbphoque.png"
+          cp assets/icon-256.png "$appdir/usr/share/icons/hicolor/256x256/apps/dbphoque.png"
+          ln -s usr/bin/dbphoque "$appdir/AppRun"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          # Pas de FUSE sur les runners : l'outil s'extrait puis s'exécute.
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$appdir" "out/$BASENAME.AppImage"
+
+          mkdir -p dist/dbphoque
+          cp "target/$TARGET/release/dbphoque" packaging/linux/dbphoque.desktop README.md assets/icon.png dist/dbphoque/
+          tar -C dist -czf "out/$BASENAME.tar.gz" dbphoque
+
+      # Windows : installeur Inno Setup (menu Démarrer, désinstallation, sans
+      # droits administrateur) et .zip portable.
+      - name: Paquets Windows (Setup.exe, .zip)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/quarry.exe dist/Quarry.exe
-          Copy-Item README.md dist/
-          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.archive }}"
+          New-Item -ItemType Directory -Force out, portable | Out-Null
+          $exe = "target/$env:TARGET/release/dbphoque.exe"
+          Copy-Item $exe portable/DBphoque.exe
+          Copy-Item README.md portable/
+          Compress-Archive -Path portable/* -DestinationPath "out/$env:BASENAME.zip"
 
-      - name: Attacher l'archive à la Release
+          choco install innosetup --no-progress -y
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceExe=$((Resolve-Path $exe).Path)" packaging/windows/dbphoque.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item dist/DBphoque-Setup.exe "out/$env:BASENAME-setup.exe"
+
+      - name: Attacher les paquets à la Release
         shell: bash
-        run: gh release upload "${{ needs.release.outputs.tag }}" "${{ matrix.archive }}" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          ls -la out
+          gh release upload "${{ needs.release.outputs.tag }}" out/* --repo "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -154,13 +193,17 @@ jobs:
 
           ## Installation
 
-          - **macOS** : dézippe, glisse `Quarry.app` dans Applications. L'application n'est pas notariée par Apple :
+          - **macOS** : ouvre le `.dmg` et glisse `DBphoque.app` dans Applications. L'application n'est pas notariée par Apple :
             au premier lancement macOS refuse de l'ouvrir ; va dans Réglages Système → Confidentialité et sécurité,
             puis clique « Ouvrir quand même » en bas de la page. En alternative, dans le Terminal :
-            `xattr -dr com.apple.quarantine /Applications/Quarry.app`.
-          - **Linux** : `tar xzf` puis lance `./quarry`.
-          - **Windows** : dézippe et lance `Quarry.exe`. SmartScreen peut demander confirmation (exécutable non signé).
+            `xattr -dr com.apple.quarantine /Applications/DBphoque.app`.
+          - **Windows** : lance `…-windows-x86_64-setup.exe` (aucun droit administrateur requis). SmartScreen peut
+            demander confirmation (installeur non signé) : « Informations complémentaires » → « Exécuter quand même ».
+            Le `.zip` contient une version portable.
+          - **Linux** : sur Debian / Ubuntu, `sudo apt install ./DBphoque-…-linux-x86_64.deb` ;
+            ailleurs, `chmod +x DBphoque-…-linux-x86_64.AppImage` puis lance-le. Le `.tar.gz` contient le binaire seul.
 
+          DBphoque s'appelait Quarry : au premier lancement, il reprend tes connexions, requêtes et connecteurs.
           Les connecteurs (PostgreSQL, MySQL, BigQuery…) se téléchargent depuis l'application : Gérer → Connecteurs.
           EOF
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file body.md --latest

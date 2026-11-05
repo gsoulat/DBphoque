@@ -989,6 +989,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
+name = "dbphoque"
+version = "0.5.0"
+dependencies = [
+ "async-trait",
+ "calamine",
+ "chrono",
+ "csv",
+ "directories",
+ "futures-util",
+ "hex",
+ "iced",
+ "keyring",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "open",
+ "parquet",
+ "png",
+ "quarry-protocol",
+ "reqwest",
+ "rfd",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "debug_unsafe"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3490,36 +3520,6 @@ name = "profiling"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
-
-[[package]]
-name = "quarry"
-version = "0.5.0"
-dependencies = [
- "async-trait",
- "calamine",
- "chrono",
- "csv",
- "directories",
- "futures-util",
- "hex",
- "iced",
- "keyring",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "open",
- "parquet",
- "png",
- "quarry-protocol",
- "reqwest",
- "rfd",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sqlx",
- "tokio",
-]
 
 [[package]]
 name = "quarry-protocol"
