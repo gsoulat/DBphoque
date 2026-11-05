@@ -1,16 +1,16 @@
 //! Connecteurs téléchargeables : registre publié sur GitHub, installation
-//! dans le dossier de données de Quarry, vérification SHA-256.
+//! dans le dossier de données de DBphoque, vérification SHA-256.
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Où Quarry lit la liste des connecteurs disponibles.
-pub const REGISTRY_URL: &str = "https://github.com/gsoulat/quarry-connectors/releases/latest/download/registry.json";
+/// Où DBphoque lit la liste des connecteurs disponibles.
+pub const REGISTRY_URL: &str = "https://github.com/gsoulat/dbphoque-connectors/releases/latest/download/registry.json";
 
 /// Cible de compilation de cette machine, telle que nommée dans le registre.
-pub const TARGET: &str = env!("QUARRY_TARGET");
+pub const TARGET: &str = env!("DBPHOQUE_TARGET");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Asset {
@@ -58,11 +58,10 @@ pub struct Installed {
 }
 
 fn connectors_dir() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("QUARRY_CONFIG_DIR") {
+    if let Ok(dir) = std::env::var("DBPHOQUE_CONFIG_DIR") {
         return Some(PathBuf::from(dir).join("connectors"));
     }
-    let dirs = directories::ProjectDirs::from("fr", "gsoulat", "Quarry")?;
-    Some(dirs.data_dir().join("connectors"))
+    Some(crate::store::project_dirs()?.data_dir().join("connectors"))
 }
 
 fn binary_name(id: &str) -> String {
@@ -105,7 +104,7 @@ pub fn installed_binary(id: &str) -> Option<PathBuf> {
 
 pub async fn fetch_registry() -> Result<Registry, String> {
     let client = reqwest::Client::builder()
-        .user_agent(concat!("quarry/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("dbphoque/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
     let response = client.get(REGISTRY_URL).send().await.map_err(|e| format!("Registre injoignable : {e}"))?;
@@ -119,7 +118,7 @@ pub async fn fetch_registry() -> Result<Registry, String> {
 pub async fn install(entry: Entry) -> Result<Installed, String> {
     let asset = entry.asset().ok_or_else(|| format!("Pas de version de {} pour {TARGET}", entry.engine))?;
     let client = reqwest::Client::builder()
-        .user_agent(concat!("quarry/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("dbphoque/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
     let bytes = client
@@ -161,11 +160,11 @@ pub fn remove(id: &str) -> Result<(), String> {
 }
 
 // ----------------------------------------------------------------------
-// Mise à jour de Quarry lui-même
+// Mise à jour de DBphoque lui-même
 // ----------------------------------------------------------------------
 
-/// Dernière Release de Quarry sur GitHub.
-pub const APP_RELEASES_API: &str = "https://api.github.com/repos/gsoulat/quarry/releases/latest";
+/// Dernière Release de DBphoque sur GitHub.
+pub const APP_RELEASES_API: &str = "https://api.github.com/repos/gsoulat/DBphoque/releases/latest";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,7 +179,7 @@ pub fn is_newer(current: &str, latest: &str) -> bool {
     version_key(latest.trim_start_matches('v')) > version_key(current.trim_start_matches('v'))
 }
 
-/// Interroge GitHub ; `Ok(None)` si Quarry est à jour. Le dépôt doit être
+/// Interroge GitHub ; `Ok(None)` si DBphoque est à jour. Le dépôt doit être
 /// public pour que l'API réponde sans authentification.
 pub async fn check_app_update() -> Result<Option<AppUpdate>, String> {
     #[derive(Deserialize)]
@@ -189,7 +188,7 @@ pub async fn check_app_update() -> Result<Option<AppUpdate>, String> {
         html_url: String,
     }
     let client = reqwest::Client::builder()
-        .user_agent(concat!("quarry/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("dbphoque/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
     let release: Release = client
@@ -238,9 +237,9 @@ mod tests {
     #[ignore = "réseau : cargo test -- --ignored"]
     async fn registry_install_round_trip() {
         let _guard = crate::store::TEST_ENV_LOCK.lock().unwrap();
-        let dir = std::env::temp_dir().join(format!("quarry-install-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dbphoque-install-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        unsafe { std::env::set_var("QUARRY_CONFIG_DIR", &dir) };
+        unsafe { std::env::set_var("DBPHOQUE_CONFIG_DIR", &dir) };
         let registry = fetch_registry().await.expect("registre");
         let entry = registry.connectors.iter().find(|c| c.id == "postgres").expect("postgres").clone();
         let installed = install(entry).await.expect("installation");
@@ -258,17 +257,17 @@ mod tests {
             })
             .expect("lancement");
         assert!(String::from_utf8_lossy(&out.stdout).contains("\"engine\":\"PostgreSQL\""));
-        unsafe { std::env::remove_var("QUARRY_CONFIG_DIR") };
+        unsafe { std::env::remove_var("DBPHOQUE_CONFIG_DIR") };
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn newest_installed_version_wins() {
         let _guard = crate::store::TEST_ENV_LOCK.lock().unwrap();
-        let dir = std::env::temp_dir().join(format!("quarry-plugins-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dbphoque-plugins-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         // SAFETY : test isolé, variable propre à ce processus.
-        unsafe { std::env::set_var("QUARRY_CONFIG_DIR", &dir) };
+        unsafe { std::env::set_var("DBPHOQUE_CONFIG_DIR", &dir) };
         for v in ["0.1.0", "0.2.0", "0.10.0"] {
             let d = dir.join("connectors").join("postgres").join(v);
             std::fs::create_dir_all(&d).unwrap();
@@ -279,7 +278,7 @@ mod tests {
         assert_eq!(found[0].version, "0.10.0");
         remove("postgres").unwrap();
         assert!(installed().is_empty());
-        unsafe { std::env::remove_var("QUARRY_CONFIG_DIR") };
+        unsafe { std::env::remove_var("DBPHOQUE_CONFIG_DIR") };
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

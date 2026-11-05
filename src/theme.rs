@@ -1,4 +1,4 @@
-//! Thème sombre de Quarry et styles des panneaux.
+//! Thème sombre de DBphoque et styles des panneaux.
 
 use iced::widget::{button, container, pane_grid as grid};
 use iced::{Background, Border, Color, Theme, color};
@@ -16,9 +16,9 @@ pub const DANGER: Color = color!(0xf7768e);
 
 const RADIUS: f32 = 8.0;
 
-pub fn quarry() -> Theme {
+pub fn dbphoque() -> Theme {
     Theme::custom(
-        "Quarry",
+        "DBphoque",
         iced::theme::Palette {
             background: BACKGROUND,
             text: TEXT,

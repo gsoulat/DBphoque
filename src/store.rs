@@ -8,7 +8,59 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-const KEYRING_SERVICE: &str = "quarry";
+const KEYRING_SERVICE: &str = "dbphoque";
+
+/// Nom de l'application avant le renommage en DBphoque : ses dossiers et son
+/// trousseau sont repris au premier lancement (voir [`migrate_from_quarry`]).
+const LEGACY_APP_NAME: &str = "Quarry";
+const LEGACY_KEYRING_SERVICE: &str = "quarry";
+
+/// Dossiers système de l'application (configuration, données).
+pub fn project_dirs() -> Option<directories::ProjectDirs> {
+    directories::ProjectDirs::from("fr", "gsoulat", "DBphoque")
+}
+
+/// Premier lancement après le renommage Quarry → DBphoque : copie les
+/// dossiers de configuration et de données de Quarry s'ils existent et que
+/// ceux de DBphoque n'existent pas encore. On copie sans déplacer, pour que
+/// Quarry reste utilisable en cas de retour en arrière. Sans effet quand
+/// `DBPHOQUE_CONFIG_DIR` est défini.
+pub fn migrate_from_quarry() {
+    if std::env::var_os("DBPHOQUE_CONFIG_DIR").is_some() {
+        return;
+    }
+    let (Some(new), Some(old)) = (project_dirs(), directories::ProjectDirs::from("fr", "gsoulat", LEGACY_APP_NAME))
+    else {
+        return;
+    };
+    // Sur macOS, configuration et données partagent le même dossier.
+    let mut pairs = vec![(old.config_dir().to_path_buf(), new.config_dir().to_path_buf())];
+    if old.data_dir() != old.config_dir() {
+        pairs.push((old.data_dir().to_path_buf(), new.data_dir().to_path_buf()));
+    }
+    for (from, to) in pairs {
+        if from.is_dir() && !to.exists() {
+            if let Err(e) = copy_dir(&from, &to) {
+                eprintln!("Migration depuis {} : {e}", from.display());
+            }
+        }
+    }
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            // `fs::copy` conserve les permissions : les connecteurs restent exécutables.
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
 
 /// Type de formulaire de connexion d'un moteur.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,7 +121,7 @@ impl Engine {
             fields: Vec::new(),
         };
         vec![
-            e("sqlite", "SQLite", None, Form::File, None, "Intégré à Quarry, aucun téléchargement."),
+            e("sqlite", "SQLite", None, Form::File, None, "Intégré à DBphoque, aucun téléchargement."),
             e("postgres", "PostgreSQL", Some("postgres"), Form::Server, Some(5432), "PostgreSQL 10 et plus."),
             e("mysql", "MySQL", Some("mysql"), Form::Server, Some(3306), "MySQL 8 ; le plan nécessite 8.0.18 ou plus."),
             e("bigquery", "Google BigQuery", Some("bigquery"), Form::Cloud, None, "SQL standard, coût estimé par dry run."),
@@ -270,19 +322,18 @@ impl ConnectionConfig {
     }
 }
 
-/// Verrou partagé par les tests qui modifient `QUARRY_CONFIG_DIR` (une
+/// Verrou partagé par les tests qui modifient `DBPHOQUE_CONFIG_DIR` (une
 /// variable d'environnement est globale au processus).
 #[cfg(test)]
 pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// Dossier de configuration. `QUARRY_CONFIG_DIR` le remplace (tests,
+/// Dossier de configuration. `DBPHOQUE_CONFIG_DIR` le remplace (tests,
 /// profils séparés).
 fn config_dir() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("QUARRY_CONFIG_DIR") {
+    if let Ok(dir) = std::env::var("DBPHOQUE_CONFIG_DIR") {
         return Some(PathBuf::from(dir));
     }
-    let dirs = directories::ProjectDirs::from("fr", "gsoulat", "Quarry")?;
-    Some(dirs.config_dir().to_path_buf())
+    Some(project_dirs()?.config_dir().to_path_buf())
 }
 
 fn config_file() -> Option<PathBuf> {
@@ -339,13 +390,31 @@ fn vault() -> Result<Vault, String> {
     if let Some(v) = cache.as_ref() {
         return Ok(v.clone());
     }
-    let vault: Vault = match vault_entry()?.get_password() {
-        Ok(json) => serde_json::from_str(&json).map_err(|e| format!("Trousseau illisible : {e}"))?,
-        Err(keyring::Error::NoEntry) => Vault::new(),
+    let json = match vault_entry()?.get_password() {
+        Ok(json) => Some(json),
+        Err(keyring::Error::NoEntry) => legacy_vault()?,
         Err(e) => return Err(format!("Trousseau : {e}")),
+    };
+    let vault: Vault = match json {
+        Some(json) => serde_json::from_str(&json).map_err(|e| format!("Trousseau illisible : {e}"))?,
+        None => Vault::new(),
     };
     *cache = Some(vault.clone());
     Ok(vault)
+}
+
+/// Coffre de Quarry, recopié sous le nom DBphoque s'il existe. L'ancien
+/// élément est conservé, pour que Quarry reste utilisable.
+fn legacy_vault() -> Result<Option<String>, String> {
+    let legacy = keyring::Entry::new(LEGACY_KEYRING_SERVICE, KEYRING_ACCOUNT).map_err(|e| e.to_string())?;
+    match legacy.get_password() {
+        Ok(json) => {
+            vault_entry()?.set_password(&json).map_err(|e| format!("Trousseau : {e}"))?;
+            Ok(Some(json))
+        }
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("Trousseau : {e}")),
+    }
 }
 
 fn write_vault(vault: Vault) -> Result<(), String> {
@@ -472,12 +541,12 @@ mod tests {
 
     /// Chaque test écrit dans son propre dossier temporaire.
     fn with_temp_config<T>(name: &str, f: impl FnOnce() -> T) -> T {
-        let dir = std::env::temp_dir().join(format!("quarry-test-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dbphoque-test-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         // SAFETY : les tests de ce module tournent en série (voir `serial`).
-        unsafe { std::env::set_var("QUARRY_CONFIG_DIR", &dir) };
+        unsafe { std::env::set_var("DBPHOQUE_CONFIG_DIR", &dir) };
         let result = f();
-        unsafe { std::env::remove_var("QUARRY_CONFIG_DIR") };
+        unsafe { std::env::remove_var("DBPHOQUE_CONFIG_DIR") };
         let _ = std::fs::remove_dir_all(&dir);
         result
     }
@@ -562,5 +631,21 @@ mod tests {
             let loaded = load().unwrap();
             assert_eq!(loaded, vec![config]);
         });
+    }
+
+    #[test]
+    fn copy_dir_reprend_fichiers_et_sous_dossiers() {
+        let root = std::env::temp_dir().join(format!("dbphoque-migration-{}", std::process::id()));
+        let (from, to) = (root.join("Quarry"), root.join("DBphoque"));
+        std::fs::create_dir_all(from.join("queries")).unwrap();
+        std::fs::write(from.join("connections.json"), "[]").unwrap();
+        std::fs::write(from.join("queries").join("1.json"), "{}").unwrap();
+
+        copy_dir(&from, &to).unwrap();
+
+        assert_eq!(std::fs::read_to_string(to.join("connections.json")).unwrap(), "[]");
+        assert_eq!(std::fs::read_to_string(to.join("queries").join("1.json")).unwrap(), "{}");
+        assert!(from.join("connections.json").exists(), "l'original est conservé");
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

@@ -481,7 +481,7 @@ fn plugins_view(manager: &Manager) -> Element<'_, Message> {
 
     let intro = text(
         "SQLite est intégré. Les autres moteurs sont des connecteurs téléchargés depuis GitHub \
-         (gsoulat/quarry-connectors), vérifiés par empreinte SHA-256 et installés dans le dossier de données de Quarry.",
+         (gsoulat/dbphoque-connectors), vérifiés par empreinte SHA-256 et installés dans le dossier de données de DBphoque.",
     )
     .size(12)
     .color(theme::MUTED);

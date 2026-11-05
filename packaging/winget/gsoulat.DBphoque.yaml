@@ -1,0 +1,7 @@
+# Modèles des manifestes winget : la CI remplace @VERSION@, @URL@ et
+# @SHA256@ puis soumet une pull request à microsoft/winget-pkgs.
+PackageIdentifier: gsoulat.DBphoque
+PackageVersion: @VERSION@
+DefaultLocale: fr-FR
+ManifestType: version
+ManifestVersion: 1.6.0

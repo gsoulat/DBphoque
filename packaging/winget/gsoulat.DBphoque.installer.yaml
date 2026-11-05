@@ -1,0 +1,21 @@
+PackageIdentifier: gsoulat.DBphoque
+PackageVersion: @VERSION@
+InstallerType: inno
+UpgradeBehavior: install
+# AppId de packaging/windows/dbphoque.iss, suffixé par Inno Setup.
+ProductCode: '{108A4203-037E-4154-8CBE-272ACF2DECFC}_is1'
+Installers:
+  - Architecture: x64
+    Scope: user
+    InstallerUrl: @URL@
+    InstallerSha256: @SHA256@
+    InstallerSwitches:
+      Custom: /CURRENTUSER
+  - Architecture: x64
+    Scope: machine
+    InstallerUrl: @URL@
+    InstallerSha256: @SHA256@
+    InstallerSwitches:
+      Custom: /ALLUSERS
+ManifestType: installer
+ManifestVersion: 1.6.0

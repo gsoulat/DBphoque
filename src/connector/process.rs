@@ -103,7 +103,7 @@ impl ProcessConnector {
         };
         if hello.protocol != PROTOCOL_VERSION {
             return Err(format!(
-                "Connecteur {} : protocole {} alors que Quarry parle le {} ; mets à jour le connecteur.",
+                "Connecteur {} : protocole {} alors que DBphoque parle le {} ; mets à jour le connecteur.",
                 hello.engine, hello.protocol, PROTOCOL_VERSION
             ));
         }

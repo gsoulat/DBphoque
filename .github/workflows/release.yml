@@ -3,8 +3,9 @@
 # `fix:`, `perf:`, `refactor:` → correctif, `BREAKING CHANGE` → majeure),
 # calcule la version, met à jour Cargo.toml, Cargo.lock et CHANGELOG.md,
 # commit, tague `v<version>` et crée la Release GitHub avec les notes.
-# Les jobs suivants compilent Quarry depuis ce tag pour macOS (Apple
-# Silicon et Intel), Linux et Windows et attachent les archives.
+# Les jobs suivants compilent DBphoque depuis ce tag pour macOS (Apple
+# Silicon et Intel), Linux et Windows et attachent les paquets
+# d'installation (.dmg, .deb, AppImage, Setup.exe) et les archives.
 # Un commit sans type releasable (`ci:`, `docs:`, `chore:`…) ne publie rien.
 # Le titre de la pull request devient le message du squash merge : c'est
 # lui qui doit porter le type.
@@ -66,20 +67,25 @@ jobs:
           - name: macOS (Apple Silicon)
             os: macos-14
             target: aarch64-apple-darwin
-            archive: Quarry-${{ needs.release.outputs.tag }}-macos-apple-silicon.zip
+            suffix: macos-apple-silicon
           # Compilé en croisé depuis le runner Apple Silicon.
           - name: macOS (Intel)
             os: macos-14
             target: x86_64-apple-darwin
-            archive: Quarry-${{ needs.release.outputs.tag }}-macos-intel.zip
+            suffix: macos-intel
           - name: Linux (x86_64)
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            archive: Quarry-${{ needs.release.outputs.tag }}-linux-x86_64.tar.gz
+            suffix: linux-x86_64
           - name: Windows (x86_64)
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            archive: Quarry-${{ needs.release.outputs.tag }}-windows-x86_64.zip
+            suffix: windows-x86_64
+    env:
+      # Préfixe commun des fichiers publiés, ex. DBphoque-v0.6.0-linux-x86_64
+      BASENAME: DBphoque-${{ needs.release.outputs.tag }}-${{ matrix.suffix }}
+      VERSION: ${{ needs.release.outputs.version }}
+      TARGET: ${{ matrix.target }}
     steps:
       # Le tag pointe sur le commit de release (Cargo.toml déjà à jour) :
       # c'est lui qu'on compile, pour que CARGO_PKG_VERSION soit la bonne.
@@ -98,44 +104,253 @@ jobs:
       - name: Compilation
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      # macOS : une vraie application Quarry.app avec son icône.
-      - name: Bundle macOS
+      # macOS : DBphoque.app signé ad hoc, livré en .dmg (glisser dans
+      # Applications) et en .zip.
+      - name: Paquets macOS (.dmg, .zip)
         if: runner.os == 'macOS'
         run: |
+          mkdir -p out
           cargo install cargo-bundle --locked
-          cargo bundle --release --target ${{ matrix.target }}
-          cd target/${{ matrix.target }}/release/bundle/osx
+          cargo bundle --release --target "$TARGET"
+          app="target/$TARGET/release/bundle/osx/DBphoque.app"
           # Signature ad hoc du bundle entier : sans elle, seul le binaire porte
           # la signature posée par l'éditeur de liens, les ressources et
           # Info.plist ne sont pas scellés et Gatekeeper affiche
-          # « Quarry est endommagé » au lieu de proposer d'ouvrir quand même.
-          codesign --force --deep --sign - Quarry.app
-          codesign --verify --deep --strict --verbose=2 Quarry.app
-          ditto -c -k --keepParent Quarry.app "${{ matrix.archive }}"
-          mv "${{ matrix.archive }}" "$GITHUB_WORKSPACE/"
+          # « DBphoque est endommagé » au lieu de proposer d'ouvrir quand même.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --keepParent "$app" "out/$BASENAME.zip"
+          # Image disque : l'application et un raccourci vers Applications.
+          mkdir dmg
+          cp -R "$app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname DBphoque -srcfolder dmg -ov -format UDZO "out/$BASENAME.dmg"
 
-      - name: Archive Linux
+      # Linux : .deb (Debian, Ubuntu), AppImage (toutes distributions) et
+      # .tar.gz (binaire seul).
+      - name: Paquets Linux (.deb, AppImage, .tar.gz)
         if: runner.os == 'Linux'
         run: |
-          mkdir -p dist/quarry
-          cp target/${{ matrix.target }}/release/quarry dist/quarry/
-          cp README.md assets/icon.png dist/quarry/
-          tar -C dist -czf "${{ matrix.archive }}" quarry
+          mkdir -p out
+          cargo install cargo-deb --locked
+          cargo deb --no-build --target "$TARGET" --output "out/$BASENAME.deb"
 
-      - name: Archive Windows
+          appdir=DBphoque.AppDir
+          mkdir -p "$appdir/usr/bin" "$appdir/usr/share/icons/hicolor/256x256/apps"
+          cp "target/$TARGET/release/dbphoque" "$appdir/usr/bin/"
+          cp packaging/linux/dbphoque.desktop "$appdir/"
+          cp assets/icon-256.png "$appdir/dbphoque.png"
+          cp assets/icon-256.png "$appdir/usr/share/icons/hicolor/256x256/apps/dbphoque.png"
+          ln -s usr/bin/dbphoque "$appdir/AppRun"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          # Pas de FUSE sur les runners : l'outil s'extrait puis s'exécute.
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$appdir" "out/$BASENAME.AppImage"
+
+          mkdir -p dist/dbphoque
+          cp "target/$TARGET/release/dbphoque" packaging/linux/dbphoque.desktop README.md assets/icon.png dist/dbphoque/
+          tar -C dist -czf "out/$BASENAME.tar.gz" dbphoque
+
+      # Windows : installeur Inno Setup (menu Démarrer, désinstallation, sans
+      # droits administrateur) et .zip portable.
+      - name: Paquets Windows (Setup.exe, .zip)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/quarry.exe dist/Quarry.exe
-          Copy-Item README.md dist/
-          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.archive }}"
+          New-Item -ItemType Directory -Force out, portable | Out-Null
+          $exe = "target/$env:TARGET/release/dbphoque.exe"
+          Copy-Item $exe portable/DBphoque.exe
+          Copy-Item README.md portable/
+          Compress-Archive -Path portable/* -DestinationPath "out/$env:BASENAME.zip"
 
-      - name: Attacher l'archive à la Release
+          choco install innosetup --no-progress -y
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DSourceExe=$((Resolve-Path $exe).Path)" packaging/windows/dbphoque.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item dist/DBphoque-Setup.exe "out/$env:BASENAME-setup.exe"
+
+      - name: Attacher les paquets à la Release
         shell: bash
-        run: gh release upload "${{ needs.release.outputs.tag }}" "${{ matrix.archive }}" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          ls -la out
+          gh release upload "${{ needs.release.outputs.tag }}" out/* --repo "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Canaux de distribution ───────────────────────────────────────────────
+  # Chaque job publie la version sur un gestionnaire de paquets. Sans son
+  # secret, il s'arrête proprement : la Release ne dépend pas de ces canaux.
+  # Voir docs/distribution.md pour la mise en place.
+
+  apt:
+    name: Dépôt APT (GitHub Pages)
+    needs: [release, build]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GPG_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.release.outputs.tag }}
+    steps:
+      - name: Secret APT_GPG_PRIVATE_KEY absent, canal ignoré
+        if: env.GPG_KEY == ''
+        run: echo "::notice::APT_GPG_PRIVATE_KEY non défini, dépôt APT non publié"
+      - uses: actions/checkout@v4
+        if: env.GPG_KEY != ''
+        with:
+          fetch-depth: 0
+      - name: Construire, signer et publier le dépôt
+        if: env.GPG_KEY != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null; then
+            git worktree add site origin/gh-pages
+            git -C site switch -C gh-pages
+          else
+            git worktree add --detach site
+            git -C site switch --orphan gh-pages
+          fi
+          touch site/.nojekyll
+
+          repo=site/apt
+          # Seule la dernière version est servie : le dépôt reste léger.
+          rm -rf "$repo/pool" "$repo/dists"
+          mkdir -p "$repo/pool/main" "$repo/dists/stable/main/binary-amd64"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir "$repo/pool/main"
+
+          sudo apt-get update && sudo apt-get install -y apt-utils
+          cd "$repo"
+          apt-ftparchive packages pool > dists/stable/main/binary-amd64/Packages
+          gzip -9kf dists/stable/main/binary-amd64/Packages
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin=DBphoque \
+            -o APT::FTPArchive::Release::Label=DBphoque \
+            -o APT::FTPArchive::Release::Suite=stable \
+            -o APT::FTPArchive::Release::Codename=stable \
+            -o APT::FTPArchive::Release::Architectures=amd64 \
+            -o APT::FTPArchive::Release::Components=main \
+            release dists/stable > "$RUNNER_TEMP/Release"
+          mv "$RUNNER_TEMP/Release" dists/stable/Release
+
+          echo "$GPG_KEY" | gpg --batch --import
+          key=$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
+          gpg --batch --yes --local-user "$key" --clearsign -o dists/stable/InRelease dists/stable/Release
+          gpg --batch --yes --local-user "$key" -abs -o dists/stable/Release.gpg dists/stable/Release
+          gpg --batch --yes --export "$key" > dbphoque.gpg
+          gpg --batch --yes --armor --export "$key" > dbphoque.asc
+          cd "$GITHUB_WORKSPACE/site"
+
+          git add -A
+          git commit -m "apt: $TAG" || exit 0
+          git push origin gh-pages
+
+  homebrew:
+    name: Cask Homebrew (gsoulat/homebrew-tap)
+    needs: [release, build]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.release.outputs.tag }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Secret HOMEBREW_TAP_TOKEN absent, canal ignoré
+        if: env.TAP_TOKEN == ''
+        run: echo "::notice::HOMEBREW_TAP_TOKEN non défini, cask non publié"
+      - uses: actions/checkout@v4
+        if: env.TAP_TOKEN != ''
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - name: Mettre à jour le cask
+        if: env.TAP_TOKEN != ''
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.dmg' --dir dmg
+          arm=$(sha256sum "dmg/DBphoque-$TAG-macos-apple-silicon.dmg" | cut -d' ' -f1)
+          intel=$(sha256sum "dmg/DBphoque-$TAG-macos-intel.dmg" | cut -d' ' -f1)
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/gsoulat/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          # L'en-tête du modèle est retiré avant toute substitution.
+          sed -e '/^# Modèle du cask/,/^# @SHA256_INTEL@/d' \
+            -e "s/@VERSION@/$VERSION/" -e "s/@SHA256_ARM@/$arm/" -e "s/@SHA256_INTEL@/$intel/" \
+            packaging/homebrew/dbphoque.rb > tap/Casks/dbphoque.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/dbphoque.rb
+          git commit -m "dbphoque $VERSION" || exit 0
+          git push
+
+  chocolatey:
+    name: Paquet Chocolatey
+    needs: [release, build]
+    if: needs.release.outputs.published == 'true'
+    runs-on: windows-latest
+    env:
+      CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.release.outputs.tag }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Secret CHOCO_API_KEY absent, canal ignoré
+        if: env.CHOCO_API_KEY == ''
+        shell: bash
+        run: echo "::notice::CHOCO_API_KEY non défini, paquet Chocolatey non publié"
+      - uses: actions/checkout@v4
+        if: env.CHOCO_API_KEY != ''
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - name: Construire et publier le paquet
+        if: env.CHOCO_API_KEY != ''
+        shell: pwsh
+        run: |
+          $setup = "DBphoque-$env:TAG-windows-x86_64-setup.exe"
+          gh release download $env:TAG --repo $env:GITHUB_REPOSITORY --pattern $setup --dir dl
+          $sha = (Get-FileHash "dl/$setup" -Algorithm SHA256).Hash.ToLower()
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:TAG/$setup"
+          $nuspec = 'packaging/chocolatey/dbphoque.nuspec'
+          $install = 'packaging/chocolatey/tools/chocolateyinstall.ps1'
+          (Get-Content $nuspec -Raw).Replace('@VERSION@', $env:VERSION) | Set-Content $nuspec -Encoding utf8
+          (Get-Content $install -Raw).Replace('@URL@', $url).Replace('@SHA256@', $sha) | Set-Content $install -Encoding utf8
+          choco pack $nuspec --outputdirectory out
+          choco push "out/dbphoque.$env:VERSION.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+
+  winget:
+    name: Manifeste winget
+    needs: [release, build]
+    if: needs.release.outputs.published == 'true'
+    runs-on: windows-latest
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.release.outputs.tag }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Secret WINGET_TOKEN absent, canal ignoré
+        if: env.WINGET_TOKEN == ''
+        shell: bash
+        run: echo "::notice::WINGET_TOKEN non défini, manifeste winget non soumis"
+      - uses: actions/checkout@v4
+        if: env.WINGET_TOKEN != ''
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - name: Soumettre les manifestes à microsoft/winget-pkgs
+        if: env.WINGET_TOKEN != ''
+        shell: pwsh
+        run: |
+          $setup = "DBphoque-$env:TAG-windows-x86_64-setup.exe"
+          gh release download $env:TAG --repo $env:GITHUB_REPOSITORY --pattern $setup --dir dl
+          $sha = (Get-FileHash "dl/$setup" -Algorithm SHA256).Hash.ToUpper()
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:TAG/$setup"
+          New-Item -ItemType Directory -Force manifests | Out-Null
+          foreach ($f in Get-ChildItem packaging/winget/*.yaml) {
+            # Les commentaires du modèle ne vont pas dans le manifeste soumis.
+            $lines = (Get-Content $f) | Where-Object { $_ -notmatch '^\s*#' }
+            $text = ($lines -join "`n").Replace('@VERSION@', $env:VERSION).Replace('@URL@', $url).Replace('@SHA256@', $sha)
+            Set-Content "manifests/$($f.Name)" $text -Encoding utf8
+          }
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          ./wingetcreate.exe submit --token $env:WINGET_TOKEN manifests
 
   notes:
     name: Notes d'installation
@@ -154,13 +369,17 @@ jobs:
 
           ## Installation
 
-          - **macOS** : dézippe, glisse `Quarry.app` dans Applications. L'application n'est pas notariée par Apple :
+          - **macOS** : ouvre le `.dmg` et glisse `DBphoque.app` dans Applications. L'application n'est pas notariée par Apple :
             au premier lancement macOS refuse de l'ouvrir ; va dans Réglages Système → Confidentialité et sécurité,
             puis clique « Ouvrir quand même » en bas de la page. En alternative, dans le Terminal :
-            `xattr -dr com.apple.quarantine /Applications/Quarry.app`.
-          - **Linux** : `tar xzf` puis lance `./quarry`.
-          - **Windows** : dézippe et lance `Quarry.exe`. SmartScreen peut demander confirmation (exécutable non signé).
+            `xattr -dr com.apple.quarantine /Applications/DBphoque.app`.
+          - **Windows** : lance `…-windows-x86_64-setup.exe` (aucun droit administrateur requis). SmartScreen peut
+            demander confirmation (installeur non signé) : « Informations complémentaires » → « Exécuter quand même ».
+            Le `.zip` contient une version portable.
+          - **Linux** : sur Debian / Ubuntu, `sudo apt install ./DBphoque-…-linux-x86_64.deb` ;
+            ailleurs, `chmod +x DBphoque-…-linux-x86_64.AppImage` puis lance-le. Le `.tar.gz` contient le binaire seul.
 
+          DBphoque s'appelait Quarry : au premier lancement, il reprend tes connexions, requêtes et connecteurs.
           Les connecteurs (PostgreSQL, MySQL, BigQuery…) se téléchargent depuis l'application : Gérer → Connecteurs.
           EOF
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file body.md --latest

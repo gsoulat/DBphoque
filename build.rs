@@ -3,6 +3,6 @@
 
 fn main() {
     let target = std::env::var("TARGET").unwrap_or_default();
-    println!("cargo:rustc-env=QUARRY_TARGET={target}");
+    println!("cargo:rustc-env=DBPHOQUE_TARGET={target}");
     println!("cargo:rerun-if-changed=build.rs");
 }

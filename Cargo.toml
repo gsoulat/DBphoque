@@ -1,8 +1,10 @@
 [package]
-name = "quarry"
+name = "dbphoque"
 version = "0.5.0"
 edition = "2024"
 description = "Client de bases de données léger et multiplateforme, écrit en Rust avec iced"
+authors = ["gsoulat"]
+homepage = "https://github.com/gsoulat/DBphoque"
 
 [dependencies]
 async-trait = "0.1.92"
@@ -12,12 +14,12 @@ csv = "1"
 directories = "6"
 futures-util = "0.3.34"
 hex = "0.4"
-iced = { version = "0.14", features = ["canvas", "highlighter", "tokio"] }
+iced = { version = "0.14", features = ["canvas", "highlighter", "image", "tokio"] }
 keyring = "4"
 open = "5"
 parquet = { version = "60", default-features = false, features = ["snap", "zstd", "lz4", "brotli", "flate2", "flate2-rust_backend", "json"] }
 png = "0.18.1"
-quarry-protocol = { git = "https://github.com/gsoulat/quarry-connectors", rev = "a6e656e", version = "0.1.0" }
+quarry-protocol = { git = "https://github.com/gsoulat/dbphoque-connectors", rev = "a6e656e", version = "0.1.0" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 rfd = "0.17"
 rust_xlsxwriter = "0.99"
@@ -42,12 +44,26 @@ strip = false
 [dev-dependencies]
 tokio = { version = "1.53.2", features = ["macros", "rt-multi-thread"] }
 
-# Pour produire Quarry.app / .msi / .deb : `cargo install cargo-bundle && cargo bundle --release`
+# Pour produire DBphoque.app : `cargo install cargo-bundle && cargo bundle --release`
 [package.metadata.bundle]
-name = "Quarry"
-identifier = "fr.gsoulat.quarry"
+name = "DBphoque"
+identifier = "fr.gsoulat.dbphoque"
 icon = ["assets/icon.icns", "assets/icon.png"]
 category = "public.app-category.developer-tools"
+
+# Paquet Debian/Ubuntu : `cargo install cargo-deb && cargo deb`
+[package.metadata.deb]
+name = "dbphoque"
+section = "database"
+depends = "$auto, ca-certificates"
+recommends = "openssh-client, gnome-keyring | kwalletmanager"
+extended-description = "Client SQL graphique : SQLite intégré, PostgreSQL, MySQL et BigQuery par connecteurs téléchargeables."
+assets = [
+  ["target/release/dbphoque", "usr/bin/", "755"],
+  ["packaging/linux/dbphoque.desktop", "usr/share/applications/", "644"],
+  ["assets/icon-256.png", "usr/share/icons/hicolor/256x256/apps/dbphoque.png", "644"],
+  ["assets/icon.png", "usr/share/icons/hicolor/1024x1024/apps/dbphoque.png", "644"],
+]
 
 
 [target.'cfg(target_os = "macos")'.dependencies]

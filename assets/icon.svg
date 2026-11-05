@@ -4,46 +4,83 @@
       <stop offset="0" stop-color="#2a3756"/>
       <stop offset="1" stop-color="#0e1116"/>
     </linearGradient>
-    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d6e2ff"/>
-      <stop offset="1" stop-color="#9db8ff"/>
+    <linearGradient id="seal" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#b9c9ec"/>
+      <stop offset="0.55" stop-color="#7f97c9"/>
+      <stop offset="1" stop-color="#4d6198"/>
     </linearGradient>
-    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7aa2f7"/>
-      <stop offset="1" stop-color="#4d6fc9"/>
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3ebfb"/>
+      <stop offset="1" stop-color="#a9bbe2"/>
     </linearGradient>
-    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4a68bf"/>
-      <stop offset="1" stop-color="#293d7a"/>
+    <linearGradient id="db" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d9a456"/>
+      <stop offset="0.45" stop-color="#f3c77a"/>
+      <stop offset="1" stop-color="#b9843c"/>
     </linearGradient>
-    <linearGradient id="facet" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#fff1cc"/>
-      <stop offset="0.5" stop-color="#f3c77a"/>
-      <stop offset="1" stop-color="#d9a456"/>
+    <linearGradient id="dbtop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff6e0"/>
+      <stop offset="1" stop-color="#f3c77a"/>
     </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f5fae"/>
+      <stop offset="1" stop-color="#1b2a52"/>
+    </linearGradient>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="16" result="b"/>
+      <feGaussianBlur stdDeviation="14" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="26" stdDeviation="24" flood-color="#000" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#000" flood-opacity="0.45"/>
     </filter>
   </defs>
 
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
 
+  <g clip-path="url(#tile)">
+    <!-- l'eau -->
+    <path d="M100 800 C 220 770, 320 830, 440 800 S 680 770, 800 800 S 900 815, 924 805 V 924 H 100 Z" fill="url(#water)"/>
+    <path d="M100 800 C 220 770, 320 830, 440 800 S 680 770, 800 800 S 900 815, 924 805" fill="none" stroke="#7aa2f7" stroke-opacity="0.6" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
   <g filter="url(#shadow)">
-    <!-- bloc isométrique s=360, h=300, sommet avant coupé -->
-    <polygon points="200,370 387,478 512,670 512,850 200,730" fill="url(#left)"/>
-    <polygon points="512,670 637,478 824,370 824,730 512,850" fill="url(#right)"/>
-    <polygon points="512,190 824,370 637,478 387,478 200,370" fill="url(#top)"/>
-    <!-- la facette taillée : la lumière dans la pierre -->
-    <polygon points="387,478 637,478 512,670" fill="url(#facet)" filter="url(#glow)"/>
-    <!-- arêtes internes de la facette -->
-    <g stroke="#fff6e0" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round" fill="none">
-      <line x1="512" y1="478" x2="512" y2="670"/>
-      <line x1="450" y1="478" x2="512" y2="574"/>
-      <line x1="574" y1="478" x2="512" y2="574"/>
+    <!-- corps : dos arrondi, queue à gauche, cou dressé à droite -->
+    <path d="M 250 800
+             C 250 690, 330 590, 450 545
+             C 500 525, 520 480, 530 430
+             C 545 365, 620 335, 680 365
+             C 735 392, 745 455, 705 500
+             C 680 530, 670 570, 680 620
+             C 695 700, 650 790, 560 805
+             Z" fill="url(#seal)"/>
+    <!-- ventre clair -->
+    <path d="M 690 520 C 670 560, 668 600, 676 640 C 690 715, 650 780, 575 800 C 640 760, 650 690, 640 630 C 632 585, 650 545, 690 520 Z" fill="url(#belly)" opacity="0.9"/>
+    <!-- nageoires arrière -->
+    <path d="M 262 790 C 210 770, 170 740, 150 700 C 200 712, 240 740, 280 770 Z" fill="#4d6198"/>
+    <path d="M 262 800 C 210 805, 170 800, 140 780 C 190 770, 235 772, 280 785 Z" fill="#5b70a8"/>
+    <!-- nageoire avant -->
+    <path d="M 600 650 C 625 700, 640 745, 625 790 C 600 760, 585 715, 575 670 Z" fill="#4d6198"/>
+    <!-- museau -->
+    <ellipse cx="712" cy="372" rx="48" ry="36" transform="rotate(-32 712 372)" fill="#c9d6f2"/>
+    <ellipse cx="742" cy="350" rx="15" ry="12" transform="rotate(-32 742 350)" fill="#1b2233"/>
+    <!-- œil -->
+    <circle cx="640" cy="395" r="17" fill="#1b2233"/>
+    <circle cx="646" cy="389" r="6" fill="#ffffff"/>
+    <!-- moustaches -->
+    <g stroke="#e6eaf2" stroke-opacity="0.8" stroke-width="4" stroke-linecap="round" fill="none">
+      <path d="M 718 388 C 750 395, 775 405, 795 420"/>
+      <path d="M 712 396 C 740 410, 760 425, 772 442"/>
     </g>
+  </g>
+
+  <!-- la base de données en équilibre sur le museau -->
+  <g transform="translate(-14 24) rotate(8 760 250)" filter="url(#glow)">
+    <path d="M 670 175 V 300 A 92 28 0 0 0 854 300 V 175 Z" fill="url(#db)"/>
+    <path d="M 670 217 A 92 28 0 0 0 854 217" fill="none" stroke="#8a5f26" stroke-opacity="0.55" stroke-width="6"/>
+    <path d="M 670 259 A 92 28 0 0 0 854 259" fill="none" stroke="#8a5f26" stroke-opacity="0.55" stroke-width="6"/>
+    <ellipse cx="762" cy="175" rx="92" ry="28" fill="url(#dbtop)"/>
   </g>
 </svg>

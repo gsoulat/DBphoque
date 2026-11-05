@@ -180,7 +180,7 @@ pub struct App {
     import_error: Option<String>,
     /// Menu « Édition » déroulé.
     edit_menu: bool,
-    /// Nouvelle version de Quarry publiée sur GitHub.
+    /// Nouvelle version de DBphoque publiée sur GitHub.
     update: Option<plugins::AppUpdate>,
     /// Moteurs proposés : intégrés + registre (mis en cache).
     catalog: Vec<Engine>,
@@ -388,13 +388,13 @@ impl App {
 
     pub fn title(&self) -> String {
         match self.active_config() {
-            Some(c) => format!("Quarry — {}", c.name),
-            None => "Quarry".into(),
+            Some(c) => format!("DBphoque — {}", c.name),
+            None => "DBphoque".into(),
         }
     }
 
     pub fn theme(&self) -> Theme {
-        theme::quarry()
+        theme::dbphoque()
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -672,7 +672,12 @@ impl App {
             .style(theme::outline(theme::PRIMARY))
             .padding([5, 12]);
 
-        let mut bar = row![text("Quarry").size(20).color(theme::PRIMARY), container(active).width(Fill)];
+        let mut brand = row![].spacing(8).align_y(iced::Center);
+        if let Some(logo) = crate::icon::logo() {
+            brand = brand.push(iced::widget::image(logo).width(30).height(30));
+        }
+        let brand = brand.push(text("DBphoque").size(20).color(theme::PRIMARY));
+        let mut bar = row![brand, container(active).width(Fill)];
         if let Some(u) = &self.update {
             bar = bar.push(
                 button(text(format!("Mise à jour {} disponible", u.version)).size(13))

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modèle : la CI remplace @VERSION@ puis lance choco pack. -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>dbphoque</id>
+    <version>@VERSION@</version>
+    <title>DBphoque</title>
+    <authors>gsoulat</authors>
+    <owners>gsoulat</owners>
+    <projectUrl>https://github.com/gsoulat/DBphoque</projectUrl>
+    <packageSourceUrl>https://github.com/gsoulat/DBphoque/tree/main/packaging/chocolatey</packageSourceUrl>
+    <iconUrl>https://raw.githubusercontent.com/gsoulat/DBphoque/main/assets/icon-256.png</iconUrl>
+    <releaseNotes>https://github.com/gsoulat/DBphoque/releases/tag/v@VERSION@</releaseNotes>
+    <tags>database sql sqlite postgresql mysql bigquery client</tags>
+    <summary>Client de bases de données léger et multiplateforme</summary>
+    <description>DBphoque est un client SQL graphique écrit en Rust : SQLite intégré ; PostgreSQL, MySQL et BigQuery par connecteurs téléchargeables ; éditeur avec autocomplétion, plan d'exécution, diagramme des tables, import et export.</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
