@@ -1,3 +1,6 @@
+// Sous Windows, application graphique : pas de console ouverte à côté.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod app;
 mod completion;
 mod connector;
@@ -17,6 +20,8 @@ use app::App;
 
 fn main() -> iced::Result {
     // Au démarrage : l'état, puis une vérification de mise à jour en arrière-plan.
+    // Reprend connexions, requêtes et connecteurs de Quarry (ancien nom).
+    store::migrate_from_quarry();
     let boot = || {
         let app = App::new();
         let tasks = iced::Task::batch([

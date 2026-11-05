@@ -44,20 +44,42 @@ impl Io {
         self.stdin.write_all(line.as_bytes()).await.map_err(|e| format!("Connecteur injoignable : {e}"))?;
         self.stdin.flush().await.map_err(|e| e.to_string())?;
 
-        let reply = tokio::time::timeout(TIMEOUT, self.stdout.next_line())
+        let response = tokio::time::timeout(TIMEOUT, read_reply(&mut self.stdout, id))
             .await
-            .map_err(|_| "Le connecteur ne répond pas (délai dépassé)".to_string())?
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Le connecteur s'est arrêté".to_string())?;
-        let response: Response = serde_json::from_str(&reply).map_err(|e| format!("Réponse illisible : {e}"))?;
-        if response.id != id {
-            return Err(format!("Réponse désynchronisée ({} attendu, {} reçu)", id, response.id));
-        }
+            .map_err(|_| "Le connecteur ne répond pas (délai dépassé)".to_string())??;
         match (response.result, response.error) {
             (Some(payload), _) => Ok(payload),
             (None, Some(error)) => Err(error),
             (None, None) => Err("Réponse vide".into()),
         }
+    }
+}
+
+/// Lit les réponses jusqu'à celle qui porte l'identifiant `id`.
+///
+/// Une requête abandonnée (délai dépassé, tâche annulée) laisse sa réponse
+/// tardive dans le tuyau : sans ce tri, la requête suivante la lirait à sa
+/// place et toutes les suivantes resteraient décalées d'un cran. Les
+/// identifiants étant croissants, une réponse plus ancienne que `id` est
+/// périmée et ignorée ; une réponse plus récente est une vraie anomalie.
+async fn read_reply<R>(lines: &mut Lines<R>, id: u64) -> Result<Response>
+where
+    R: tokio::io::AsyncBufRead + Unpin,
+{
+    loop {
+        let reply = lines
+            .next_line()
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Le connecteur s'est arrêté".to_string())?;
+        let response: Response = serde_json::from_str(&reply).map_err(|e| format!("Réponse illisible : {e}"))?;
+        if response.id < id {
+            continue;
+        }
+        if response.id > id {
+            return Err(format!("Réponse désynchronisée ({} attendu, {} reçu)", id, response.id));
+        }
+        return Ok(response);
     }
 }
 
@@ -81,7 +103,7 @@ impl ProcessConnector {
         };
         if hello.protocol != PROTOCOL_VERSION {
             return Err(format!(
-                "Connecteur {} : protocole {} alors que Quarry parle le {} ; mets à jour le connecteur.",
+                "Connecteur {} : protocole {} alors que DBphoque parle le {} ; mets à jour le connecteur.",
                 hello.engine, hello.protocol, PROTOCOL_VERSION
             ));
         }
@@ -151,5 +173,40 @@ impl Connector for ProcessConnector {
 
     async fn execute(&self, sql: &str) -> Result<u64> {
         expect!(self.call(Request::Execute { sql: sql.into() }).await?, Affected)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lines(input: &'static str) -> Lines<BufReader<&'static [u8]>> {
+        BufReader::new(input.as_bytes()).lines()
+    }
+
+    #[tokio::test]
+    async fn ignore_les_reponses_perimees() {
+        // La réponse 1 arrive en retard, après l'abandon de la requête 1.
+        let mut stdout = lines(
+            "{\"id\":1,\"result\":{\"kind\":\"schemas\",\"data\":[\"vieux\"]}}\n\
+             {\"id\":2,\"result\":{\"kind\":\"schemas\",\"data\":[\"public\"]}}\n",
+        );
+        let response = read_reply(&mut stdout, 2).await.unwrap();
+        assert_eq!(response.id, 2);
+        assert!(matches!(response.result, Some(Payload::Schemas(s)) if s == ["public"]));
+    }
+
+    #[tokio::test]
+    async fn refuse_une_reponse_venue_du_futur() {
+        let mut stdout = lines("{\"id\":5,\"result\":{\"kind\":\"ok\"}}\n");
+        let err = read_reply(&mut stdout, 3).await.unwrap_err();
+        assert!(err.contains("désynchronisée"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn signale_un_connecteur_arrete() {
+        let mut stdout = lines("{\"id\":1,\"result\":{\"kind\":\"ok\"}}\n");
+        let err = read_reply(&mut stdout, 2).await.unwrap_err();
+        assert!(err.contains("arrêté"), "{err}");
     }
 }

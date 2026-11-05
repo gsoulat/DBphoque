@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn csv_delimiter_is_detected_and_types_inferred() {
-        let dir = std::env::temp_dir().join(format!("quarry-import-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dbphoque-import-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("clients.csv");
         std::fs::write(&path, "Nom;Âge;Score\nAda;36;9.5\nLinus;;7\n").unwrap();

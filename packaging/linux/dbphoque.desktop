@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=DBphoque
+GenericName=Client de bases de données
+Comment=Client SQL léger : SQLite, PostgreSQL, MySQL, BigQuery
+Exec=dbphoque
+Icon=dbphoque
+Terminal=false
+Categories=Development;Database;
+Keywords=SQL;SQLite;PostgreSQL;MySQL;BigQuery;database;
+StartupWMClass=dbphoque
