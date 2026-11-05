@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Où DBphoque lit la liste des connecteurs disponibles.
-pub const REGISTRY_URL: &str = "https://github.com/gsoulat/quarry-connectors/releases/latest/download/registry.json";
+pub const REGISTRY_URL: &str = "https://github.com/gsoulat/dbphoque-connectors/releases/latest/download/registry.json";
 
 /// Cible de compilation de cette machine, telle que nommée dans le registre.
 pub const TARGET: &str = env!("DBPHOQUE_TARGET");

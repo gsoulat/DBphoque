@@ -6,7 +6,7 @@ Client de bases de données léger et multiplateforme (macOS, Linux, Windows), �
 
 ## Fonctionnalités
 
-- **SQLite intégré** ; **PostgreSQL**, **MySQL** et **Google BigQuery** sous forme de **connecteurs téléchargeables** (Gérer → Connecteurs) depuis [quarry-connectors](https://github.com/gsoulat/quarry-connectors), vérifiés par SHA-256 — on n'installe que ceux dont on a besoin
+- **SQLite intégré** ; **PostgreSQL**, **MySQL** et **Google BigQuery** sous forme de **connecteurs téléchargeables** (Gérer → Connecteurs) depuis [dbphoque-connectors](https://github.com/gsoulat/dbphoque-connectors), vérifiés par SHA-256 — on n'installe que ceux dont on a besoin
 - Vérification de **mise à jour** de DBphoque au démarrage (bouton dans la barre du haut)
 - **Gestionnaire de connexions** (bouton « Gérer ») : ajouter, tester, modifier, supprimer, ranger dans des **dossiers**
 - **Menu « Édition »** : créer / renommer / supprimer une table, ajouter / renommer / supprimer une colonne (types dans un menu déroulant par moteur), insérer / modifier / supprimer une ligne (onglet Données). Le SQL généré est **affiché et confirmé avant exécution**
@@ -107,7 +107,7 @@ src/
     └── plan.rs          ordre d'exécution, plan SQLite
 ```
 
-Pour ajouter un moteur (DuckDB, MongoDB…), on écrit un connecteur dans [quarry-connectors](https://github.com/gsoulat/quarry-connectors) (un dossier, un exécutable, le protocole JSON décrit là-bas) et on ajoute sa variante à `store::Engine`.
+Pour ajouter un moteur (DuckDB, MongoDB…), on écrit un connecteur dans [dbphoque-connectors](https://github.com/gsoulat/dbphoque-connectors) (un dossier, un exécutable, le protocole JSON décrit là-bas) et on ajoute sa variante à `store::Engine`.
 
 ## Feuille de route
 

@@ -3953,7 +3953,7 @@ dependencies = [
 [[package]]
 name = "quarry-protocol"
 version = "0.1.0"
-source = "git+https://github.com/gsoulat/quarry-connectors?rev=a6e656e#a6e656e9911733f810167575904c5c776b53e8ac"
+source = "git+https://github.com/gsoulat/dbphoque-connectors?rev=a6e656e#a6e656e9911733f810167575904c5c776b53e8ac"
 dependencies = [
  "serde",
  "serde_json",
