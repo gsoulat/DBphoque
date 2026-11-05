@@ -672,7 +672,12 @@ impl App {
             .style(theme::outline(theme::PRIMARY))
             .padding([5, 12]);
 
-        let mut bar = row![text("DBphoque").size(20).color(theme::PRIMARY), container(active).width(Fill)];
+        let mut brand = row![].spacing(8).align_y(iced::Center);
+        if let Some(logo) = crate::icon::logo() {
+            brand = brand.push(iced::widget::image(logo).width(30).height(30));
+        }
+        let brand = brand.push(text("DBphoque").size(20).color(theme::PRIMARY));
+        let mut bar = row![brand, container(active).width(Fill)];
         if let Some(u) = &self.update {
             bar = bar.push(
                 button(text(format!("Mise à jour {} disponible", u.version)).size(13))

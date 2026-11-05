@@ -14,7 +14,7 @@ csv = "1"
 directories = "6"
 futures-util = "0.3.34"
 hex = "0.4"
-iced = { version = "0.14", features = ["canvas", "highlighter", "tokio"] }
+iced = { version = "0.14", features = ["canvas", "highlighter", "image", "tokio"] }
 keyring = "4"
 open = "5"
 parquet = { version = "60", default-features = false, features = ["snap", "zstd", "lz4", "brotli", "flate2", "flate2-rust_backend", "json"] }

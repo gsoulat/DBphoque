@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Génère les icônes de DBphoque à partir de assets/icon.svg (macOS uniquement :
-# le rendu passe par Quick Look et l'icns par iconutil ; l'ico par ImageMagick) :
+# l'icns passe par iconutil) ; demande rsvg-convert et ImageMagick :
+#   brew install librsvg imagemagick
 #   assets/icon.png      1024 px, icône du Dock
 #   assets/icon-256.png  256 px, icône de fenêtre (incluse dans le binaire)
 #   assets/icon.icns     jeu complet pour le bundle macOS
@@ -12,8 +13,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 render() { # render <taille> <sortie>
-  qlmanage -t -s "$1" -o "$tmp" "$svg" >/dev/null 2>&1
-  mv "$tmp/icon.svg.png" "$2"
+  # rsvg-convert garde la transparence (Quick Look remplissait les coins en blanc).
+  rsvg-convert -w "$1" -h "$1" "$svg" -o "$2"
 }
 
 iconset="$tmp/icon.iconset"
