@@ -65,12 +65,12 @@ jobs:
       matrix:
         include:
           - name: macOS (Apple Silicon)
-            os: macos-14
+            os: macos-15
             target: aarch64-apple-darwin
             suffix: macos-apple-silicon
           # Compilé en croisé depuis le runner Apple Silicon.
           - name: macOS (Intel)
-            os: macos-14
+            os: macos-15
             target: x86_64-apple-darwin
             suffix: macos-intel
           - name: Linux (x86_64)
