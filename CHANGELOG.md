@@ -1,3 +1,9 @@
+## [0.6.1](https://github.com/gsoulat/DBphoque/compare/v0.6.0...v0.6.1) (2026-11-06)
+
+### Corrections
+
+* **release:** compiler macOS sur macos-15, l'image macos-14 n'est plus fournie ([e996a0a](https://github.com/gsoulat/DBphoque/commit/e996a0a2c17836c8813afd52110e3cea177a22b8))
+
 ## [0.6.0](https://github.com/gsoulat/DBphoque/compare/v0.5.0...v0.6.0) (2026-11-05)
 
 ### Nouveautés
